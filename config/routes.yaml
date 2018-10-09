@@ -1,0 +1,7 @@
+carts:
+    type:     rest
+    resource: App\Controller\CartController
+
+users:
+    type:     rest
+    resource: App\Controller\UserController
