@@ -11,15 +11,14 @@ class CartType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-        $builder
-            ->add('user')
-        ;
+        $builder->add('user');
     }
 
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults([
             'data_class' => Cart::class,
+            'csrf_protection' => false,
         ]);
     }
 }

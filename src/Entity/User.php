@@ -6,6 +6,8 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\Entity(repositoryClass="App\Repository\UserRepository")
@@ -29,9 +31,17 @@ class User implements UserInterface
      */
     private $roles = [];
 
+     /**
+     * @Assert\NotBlank()
+     * @Assert\Length(max=4096)
+     */
+    private $plainPassword;
+
     /**
-     * @var string The hashed password
-     * @ORM\Column(type="string")
+     * The below length depends on the "algorithm" you use for encoding
+     * the password, but this works well with bcrypt.
+     *
+     * @ORM\Column(type="string", length=4096)
      */
     private $password;
 
@@ -86,27 +96,31 @@ class User implements UserInterface
         return $this;
     }
 
-    /**
-     * @see UserInterface
-     */
-    public function getPassword(): string
+    public function getPlainPassword()
     {
-        return (string) $this->password;
+        return $this->plainPassword;
     }
 
-    public function setPassword(string $password): self
+    public function setPlainPassword($password)
+    {
+        $this->plainPassword = $password;
+    }
+
+    public function getPassword()
+    {
+        return $this->password;
+    }
+
+    public function setPassword($password)
     {
         $this->password = $password;
-
-        return $this;
     }
 
-    /**
-     * @see UserInterface
-     */
     public function getSalt()
     {
-        // not needed when using the "bcrypt" algorithm in security.yaml
+        // The bcrypt and argon2i algorithms don't require a separate salt.
+        // You *may* need a real salt if you choose a different encoder.
+        return null;
     }
 
     /**
