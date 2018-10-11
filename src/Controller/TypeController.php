@@ -10,19 +10,25 @@ use FOS\RestBundle\Controller\Annotations;
 use Symfony\Component\HttpFoundation\Request;
 use FOS\RestBundle\Routing\ClassResourceInterface;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Form\UserType;
-use App\Entity\User;
-use App\Repository\UserRepository;
-use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
+use App\Form\CartType;
+use App\Entity\Cart;
+use App\Repository\CartRepository;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Serializer;
+use App\Entity\Type;
+use App\Form\TypeType;
+use App\Repository\TypeRepository;
 
 /**
 * @Rest\RouteResource(
-*   "User",
+*   "Type",
 *   pluralize=false,
 * )
 */
-class UserController extends FOSRestController  implements ClassResourceInterface
+class TypeController extends FOSRestController  implements ClassResourceInterface
 {
     /**
      * @var EntityManagerInterface
@@ -30,71 +36,64 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
     private $entityManager;
 
     /**
-     * @var UserRepository
+     * @var TypeRepository
      */
-    private $userRepository;
+    private $typeRepository;
 
     /**
-     * @var UserPasswordEncoderInterface
+     * @var SerializerInterface
      */
-    private $passwordEncoder;
+    private $serializer;
     
     public function __construct(
         EntityManagerInterface $entityManager, 
-        UserRepository $userRepository, 
-        UserPasswordEncoderInterface $passwordEncoder
+        TypeRepository $typeRepository
     )
     {
         $this->entityManager = $entityManager;
-        $this->userRepository = $userRepository;
-        $this->passwordEncoder = $passwordEncoder;
+        $this->typeRepository = $typeRepository;
     }
 
     /**
      * @param $id
      *
-     * @return User|null
+     * @return Type|null
      * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
      */
-    private function findUserById($id)
+    private function findTypeById($id)
     {
-        $user = $this->userRepository->find($id);
+        $type = $this->typeRepository->find($id);
 
-        if (!$user) {
+        if (!$type) {
             throw new NotFoundHttpException();
         }
 
-        return $user;
+        return $type;
     }
 
     public function getAction(String $id)
     {
-        $user = $this->findUserById($id);
-        return $this->view($user);
+        $type = $this->findTypeById($id);
+        return $this->view($type);
     }
 
     public function cgetAction()
     {
-        return $this->view(
-            $this->userRepository->findAll()
-        );
+        $types = $this->typeRepository->findAll();
+        return $this->view($types);
     }
     
     public function postAction(Request $request)
     {
-        $user = new User();
-        $form = $this->createForm(UserType::class, $user);
+        $type = new Type();
+        $form = $this->createForm(TypeType::class, $type);
         $form->submit($request->request->all());
 
         if ($form->isValid()) {
-
-            $password = $this->passwordEncoder->encodePassword($user, $user->getPlainPassword());
-            $user->setPassword($password);
-
-            $this->entityManager->persist($user);
+            $this->entityManager->persist($type);
             $this->entityManager->flush();
 
-            return $this->view([ 'status' => 'ok', 'user' => $user], Response::HTTP_CREATED);
+            return $this->view([ 'status' => 'ok', 'type' => $type], Response::HTTP_CREATED);
         }
 
         return $this->view($form);
@@ -102,19 +101,14 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
 
     public function putAction(Request $request, string $id)
     {
-        $user = $this->findUserById($id);
+        $type = $this->findTypeById($id);
 
-        $form = $this->createForm(UserType::class, $user);
+        $form = $this->createForm(TypeType::class, $type);
 
         $form->submit($request->request->all());
 
         if (!$form->isValid()) {
             return $this->view($form);
-        }
-
-        if ($user->getPlainPassword()) {
-            $password = $this->passwordEncoder->encodePassword($user, $user->getPlainPassword());
-            $user->setPassword($password);
         }
 
         $this->entityManager->flush();
@@ -124,18 +118,15 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
 
     public function patchAction(Request $request, string $id)
     {
-        $user = $this->findUserById($id);
+        $type = $this->findTypeById($id);
 
-        $form = $this->createForm(UserType::class, $user);
+        $form = $this->createForm(TypeType::class, $type);
 
         $form->submit($request->request->all(), false);
 
         if (!$form->isValid()) {
             return $this->view($form);
         }
-        die(var_dump());
-        $password = $this->passwordEncoder->encodePassword($user, $user->getPlainPassword());
-        $user->setPassword($password);
         
         $this->entityManager->flush();
 
@@ -144,9 +135,9 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
 
     public function deleteAction(string $id)
     {
-        $user = $this->findUserById($id);
+        $type = $this->findTypeById($id);
         
-        $this->entityManager->remove($user);
+        $this->entityManager->remove($type);
         $this->entityManager->flush();
 
         return $this->view(null, Response::HTTP_NO_CONTENT);

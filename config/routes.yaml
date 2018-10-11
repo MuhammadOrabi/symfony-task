@@ -1,7 +1,19 @@
 carts:
+    prefix: /api
     type:     rest
     resource: App\Controller\CartController
 
 users:
+    prefix: /api
     type:     rest
     resource: App\Controller\UserController
+
+types:
+    prefix: /api
+    type:     rest
+    resource: App\Controller\TypeController
+
+Products:
+    prefix: /api
+    type:     rest
+    resource: App\Controller\ProductController
