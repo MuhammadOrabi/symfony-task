@@ -19,6 +19,7 @@ use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Serializer;
 use App\Repository\CartRepository;
+use App\Repository\TypeRepository;
 
 /**
 * @Rest\RouteResource(
@@ -37,14 +38,21 @@ class ProductController extends FOSRestController  implements ClassResourceInter
      * @var ProductRepository
      */
     private $productRepository;
+
+    /**
+     * @var TypeRepository
+     */
+    private $typeRepository;
     
     public function __construct(
         EntityManagerInterface $entityManager, 
-        ProductRepository $productRepository
+        ProductRepository $productRepository,
+        TypeRepository $typeRepository
     )
     {
         $this->entityManager = $entityManager;
         $this->productRepository = $productRepository;
+        $this->typeRepository = $typeRepository;
     }
 
     /**
@@ -81,6 +89,11 @@ class ProductController extends FOSRestController  implements ClassResourceInter
         $product = new Product();
         $form = $this->createForm(ProductType::class, $product);
         $data = $request->request->all();
+
+        if (isset($data['types'])) {
+            $type = $this->typeRepository->findOneById($data['types']);
+            $product->addType($type);
+        }
 
         $form->submit($data);
 

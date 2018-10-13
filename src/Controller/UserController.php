@@ -4,9 +4,7 @@ namespace App\Controller;
 
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\Controller\FOSRestController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use FOS\RestBundle\Controller\Annotations;
 use Symfony\Component\HttpFoundation\Request;
 use FOS\RestBundle\Routing\ClassResourceInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,6 +13,11 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\Repository\TypeRepository;
+use App\Entity\Cart;
+use Doctrine\Common\Collections\Criteria;
+use Doctrine\ORM\Query\Expr;
+use App\Repository\ProductRepository;
 
 /**
 * @Rest\RouteResource(
@@ -35,6 +38,16 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
     private $userRepository;
 
     /**
+     * @var TypeRepository
+     */
+    private $typeRepository;
+
+     /**
+     * @var ProductRepository
+     */
+    private $productRepository;
+
+    /**
      * @var UserPasswordEncoderInterface
      */
     private $passwordEncoder;
@@ -42,11 +55,15 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
     public function __construct(
         EntityManagerInterface $entityManager, 
         UserRepository $userRepository, 
+        TypeRepository $typeRepository, 
+        ProductRepository $productRepository, 
         UserPasswordEncoderInterface $passwordEncoder
     )
     {
         $this->entityManager = $entityManager;
         $this->userRepository = $userRepository;
+        $this->typeRepository = $typeRepository;
+        $this->productRepository = $productRepository;
         $this->passwordEncoder = $passwordEncoder;
     }
 
@@ -65,6 +82,21 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
         }
 
         return $user;
+    }
+
+    public function initCartsByType(User $user, Array $typesCritiria)
+    {
+        foreach ($typesCritiria as $typeCritiria) {
+            $type = $this->typeRepository->findOneOrCreate($typeCritiria);
+            $cart = new Cart;
+            $cart->addType($type);
+            $cart->setUser($user);
+            
+            $this->entityManager->persist($cart);
+            $this->entityManager->flush();
+    
+            $user->addCart($cart);
+        }
     }
 
     public function getAction(String $id)
@@ -94,10 +126,76 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
             $this->entityManager->persist($user);
             $this->entityManager->flush();
 
+            $this->initCartsByType(
+                $user,
+                [
+                    ['slug' => 'wish-list', 'title' => 'Wish list'],
+                    ['slug' => 'order-list', 'title' => 'Order list']
+                ]
+            );
+
             return $this->view([ 'status' => 'ok', 'user' => $user], Response::HTTP_CREATED);
         }
 
         return $this->view($form);
+    }
+
+    public function getProductsAction(Request $request, string $id, string $slug)
+    {
+        $user = $this->findUserById($id);
+        $type = $this->typeRepository->findOneBy(['slug' => $slug]);
+        $cart = $user->findCartByType($type);
+        
+        return $this->view($cart->getProducts(), Response::HTTP_OK);
+    }
+
+    public function postProductsAction(Request $request, string $id, string $slug)
+    {
+        $user = $this->findUserById($id);
+        $type = $this->typeRepository->findOneBy(['slug' => $slug]);
+        $cart = $user->findCartByType($type);
+        
+        $productsId = $request->get('products');
+        $products = $this->productRepository->findBy(['id' => $productsId]);
+        array_map(function($product) use ($cart) {
+            $cart->addProduct($product);
+        }, $products);
+
+        $this->entityManager->persist($cart);
+        $this->entityManager->flush();
+        return $this->view($cart, Response::HTTP_OK);
+    }
+
+    public function putProductsAction(Request $request, string $id, string $slug)
+    {
+        $user = $this->findUserById($id);
+        $type = $this->typeRepository->findOneBy(['slug' => $slug]);
+        $cart = $user->findCartByType($type);
+        
+        $productsId = $request->get('products');
+        $products = $this->productRepository->findBy(['id' => $productsId]);
+        array_map(function($product) use ($cart) {
+            $cart->removeProduct($product);
+        }, $products);
+
+        $this->entityManager->persist($cart);
+        $this->entityManager->flush();
+        return $this->view($cart, Response::HTTP_OK);
+    }
+
+    public function deleteProductsAction(Request $request, string $id, string $slug)
+    {
+        $user = $this->findUserById($id);
+        $type = $this->typeRepository->findOneBy(['slug' => $slug]);
+        $cart = $user->findCartByType($type);
+        
+        $products = $cart->getProducts()->map(function($product) use ($cart) {
+            $product = $this->productRepository->findOneBy(['id' => $product->getId()]);
+            $cart->removeProduct($product);
+        });
+        $this->entityManager->persist($cart);
+        $this->entityManager->flush();
+        return $this->view($cart, Response::HTTP_OK);
     }
 
     public function putAction(Request $request, string $id)
@@ -133,7 +231,6 @@ class UserController extends FOSRestController  implements ClassResourceInterfac
         if (!$form->isValid()) {
             return $this->view($form);
         }
-        die(var_dump());
         $password = $this->passwordEncoder->encodePassword($user, $user->getPlainPassword());
         $user->setPassword($password);
         

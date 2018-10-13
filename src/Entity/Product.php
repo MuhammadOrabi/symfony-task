@@ -33,9 +33,15 @@ class Product
      */
     private $carts;
 
+    /**
+     * @ORM\ManyToMany(targetEntity="App\Entity\Type", inversedBy="products")
+     */
+    private $types;
+
     public function __construct()
     {
         $this->carts = new ArrayCollection();
+        $this->types = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -88,6 +94,32 @@ class Product
     {
         if ($this->carts->contains($cart)) {
             $this->carts->removeElement($cart);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Type[]
+     */
+    public function getTypes(): Collection
+    {
+        return $this->types;
+    }
+
+    public function addType(Type $type): self
+    {
+        if (!$this->types->contains($type)) {
+            $this->types[] = $type;
+        }
+
+        return $this;
+    }
+
+    public function removeType(Type $type): self
+    {
+        if ($this->types->contains($type)) {
+            $this->types->removeElement($type);
         }
 
         return $this;

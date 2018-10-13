@@ -8,6 +8,8 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Validator\Constraints as Assert;
+use Doctrine\Common\Collections\Criteria;
+use App\Repository\TypeRepository;
 
 /**
  * @ORM\Entity(repositoryClass="App\Repository\UserRepository")
@@ -49,7 +51,7 @@ class User implements UserInterface
      * @ORM\OneToMany(targetEntity="App\Entity\Cart", mappedBy="user", orphanRemoval=true)
      */
     private $carts;
-
+    
     public function __construct()
     {
         $this->carts = new ArrayCollection();
@@ -161,5 +163,15 @@ class User implements UserInterface
         }
 
         return $this;
+    }
+
+    /**
+    * @return Cart[] Returns an array of Cart objects
+    */
+    public function findCartByType($type)
+    {
+        return $this->getCarts()->filter(function ($cart) use ($type) {
+            return $cart->getTypes()->contains($type);
+        })->first();
     }
 }

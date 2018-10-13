@@ -42,7 +42,22 @@ class TypeRepository extends ServiceEntityRepository
             ->andWhere('t.id = :val')
             ->setParameter('val', $value)
             ->getQuery()
-            ->getOneOrNullResult()
-        ;
+            ->getOneOrNullResult();
+    }
+
+    public function findOneOrCreate(array $criteria)
+    {
+        $type = $this->findOneBy($criteria);
+
+        if (!$type)
+        {
+           $type = new Type;
+           $type->setSlug($criteria['slug']); 
+           $type->setTitle($criteria['title']); 
+           $this->_em->persist($type);
+           $this->_em->flush();
+        }
+
+        return $type;
     }
 }
